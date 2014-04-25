@@ -53,7 +53,7 @@ class Favicon_Selector {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
 		
 		// Load options page
-		add_action('admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		
 		// Load callback for saving settings
 		add_action( 'wp_ajax_fs_save_settings', array( $this, 'save_settings_callback' ) );
@@ -268,7 +268,15 @@ class Favicon_Selector {
 	* @since 1.0.0
 	*/
 	public function admin_menu() {
-        add_options_page( __('Favicon selector', 'favicon-selector'), 'Favicon selector', 'manage_options', 'favicon-selector', array( $this, 'favicon_selector_options_page' ) );
+        /**
+		* fs_filter_save_settings_capability
+		*
+		* Filter the capability that can access the settings page
+		*
+		* @since 1.0.0
+		*/
+		$capability = apply_filters( 'fs_filter_save_settings_capability', 'manage_options' );
+		add_options_page( __('Favicon selector', 'favicon-selector'), 'Favicon selector', $capability, 'favicon-selector', array( $this, 'favicon_selector_options_page' ) );
     }
 	
 	/**
@@ -295,7 +303,6 @@ class Favicon_Selector {
 			'star' => __( 'Star', 'favicon-selector' ),
 			'tv-color' => __( 'TV - color', 'favicon-selector' )
 		);
-		$existing_favicons = apply_filters( 'fs_filter_existing_favicons', $existing_favicons );
 		$favicons_folder = FAVICON_SELECTOR_BACKEND_URL . '/res/img/favicons/';
 		$favicon_options = get_option( 'fs_options', array() );
 		$favicon_selected = isset( $favicon_options[ 'favicon_selected' ] ) ? $favicon_options[ 'favicon_selected' ] : '';
@@ -308,7 +315,16 @@ class Favicon_Selector {
 			
 			<table class="form-table js-fs-options">
 				<tbody>
-					<?php do_action( 'fs_action_options_table_before_rows' ); ?>
+					<?php
+					/**
+					* fs_action_options_table_before_rows
+					*
+					* Action before the options table rows
+					*
+					* @since 1.0.0
+					*/
+					do_action( 'fs_action_options_table_before_rows' );
+					?>
 					<tr>
 						<th scope="row"><?php _e( 'Select a favicon', 'favicon-selector' ); ?></th>
 						<td>
@@ -323,6 +339,16 @@ class Favicon_Selector {
 								<?php
 							}
 							?>
+							<?php
+							/**
+							* fs_action_options_table_extend_existing_favicons
+							*
+							* Action to extend the built-in list of favicons with custom ones
+							*
+							* @since 1.0.0
+							*/
+							do_action( 'fs_action_options_table_extend_existing_favicons' );
+							?>
 							</ul>
 						</td>
 					</tr>
@@ -333,7 +359,16 @@ class Favicon_Selector {
 							<label for='fs-favicon-dashboard'><?php _e( 'Apply this same favicon to the dashboard', 'favicon-selector' ); ?></label>
 						</td>
 					</tr>
-					<?php do_action( 'fs_action_options_table_after_rows' ); ?>
+					<?php
+					/**
+					* fs_action_options_table_after_rows
+					*
+					* Action after the options table rows
+					*
+					* @since 1.0.0
+					*/
+					do_action( 'fs_action_options_table_after_rows' );
+					?>
 				</tbody>
 			</table>
 			<?php 
@@ -358,11 +393,18 @@ class Favicon_Selector {
 		$favicon_data = wp_parse_args( $_POST['favicon_data'] );
 		if ( !isset( $favicon_data['favicon-selected'] ) ) die( 'notselected' );
 		$sanitized_favicon_to_save = sanitize_title( $favicon_data['favicon-selected'] );
-		$favicon_in_dashboard = isset( $favicon_data['favicon-dashboard'] ) ? $favicon_data['favicon-dashboard'] : 'disable';
+		$favicon_in_dashboard = isset( $favicon_data['favicon-dashboard'] ) ? sanitize_title( $favicon_data['favicon-dashboard'] ) : 'disable';
 		$options = array(
 			'favicon_selected' => $sanitized_favicon_to_save,
 			'favicon_dashboard' => $favicon_in_dashboard
 		);
+		/**
+		* fs_filter_saving_options
+		*
+		* Filter before saving options
+		*
+		* @since 1.0.0
+		*/
 		$options = apply_filters( 'fs_filter_saving_options', $options );
 		update_option( 'fs_options', $options );
 		die( 'ok' );
@@ -374,10 +416,26 @@ class Favicon_Selector {
 	* @since 1.0.0
 	*/
 	public function display_favicon_in_frontend() {
-		$favicons_folder = FAVICON_SELECTOR_FRONTEND_URL . '/res/img/favicons/';
 		$favicon_options = get_option( 'fs_options', array() );
 		$favicon_selected = isset( $favicon_options[ 'favicon_selected' ] ) ? $favicon_options[ 'favicon_selected' ] : '';
 		if ( !empty( $favicon_selected ) ) {
+			$favicons_folder = FAVICON_SELECTOR_FRONTEND_URL . '/res/img/favicons/';
+			/**
+			* fs_filter_frontend_favicons_folder
+			*
+			* Filter the built-in favicon files folder
+			*
+			* Use this if you are trying to load a favicon added on the fs_action_options_table_extend_existing_favicons action
+			* as it will likely not be placed on the built-in folder
+			*
+			* @param $favicon_folder
+			* @param @favicon_selected
+			*
+			* @return $favicon_folder
+			*
+			* @since 1.0.0
+			*/
+			$favicons_folder = apply_filters( 'fs_filter_frontend_favicons_folder', $favicons_folder, $favicon_selected );
 			?>
 			<link rel="shortcut icon" href="<?php echo $favicons_folder . $favicon_selected; ?>.ico?ver=<?php echo $favicon_selected; ?>"> 
 			<?php
@@ -390,11 +448,27 @@ class Favicon_Selector {
 	* @since 1.0.0
 	*/
 	public function display_favicon_in_backend() {
-		$favicons_folder = FAVICON_SELECTOR_BACKEND_URL . '/res/img/favicons/';
 		$favicon_options = get_option( 'fs_options', array() );
 		$favicon_selected = isset( $favicon_options[ 'favicon_selected' ] ) ? $favicon_options[ 'favicon_selected' ] : '';
 		$favicon_on_dashboard = isset( $favicon_options[ 'favicon_dashboard' ] ) ? $favicon_options[ 'favicon_dashboard' ] : 'disable';
 		if ( !empty( $favicon_selected ) && $favicon_on_dashboard == 'enable' ) {
+			$favicons_folder = FAVICON_SELECTOR_BACKEND_URL . '/res/img/favicons/';
+			/**
+			* fs_filter_backend_favicons_folder
+			*
+			* Filter the built-in favicon files folder
+			*
+			* Use this if you are trying to load a favicon added on the fs_action_options_table_extend_existing_favicons action
+			* as it will likely not be placed on the built-in folder
+			*
+			* @param $favicon_folder
+			* @param @favicon_selected
+			*
+			* @return $favicon_folder
+			*
+			* @since 1.0.0
+			*/
+			$favicons_folder = apply_filters( 'fs_filter_backend_favicons_folder', $favicons_folder, $favicon_selected );
 			?>
 			<link rel="shortcut icon" href="<?php echo $favicons_folder . $favicon_selected; ?>.ico?ver=<?php echo $favicon_selected; ?>"> 
 			<?php
